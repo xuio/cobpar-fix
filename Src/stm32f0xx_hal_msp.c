@@ -58,6 +58,8 @@
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
+
+extern DMA_HandleTypeDef hdma_usart1_rx;
                         
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                         /**
@@ -130,7 +132,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     GPIO_InitStruct.Pin = PWM4_Pin|PWM3_Pin|PWM2_Pin|PWM1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM1;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -194,15 +196,10 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 
 }
 
-/**
-* @brief UART MSP Initialization
-* This function configures the hardware resources used in this example
-* @param huart: UART handle pointer
-* @retval None
-*/
 void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  GPIO_InitTypeDef GPIO_InitStruct;
   if(huart->Instance==USART1)
   {
   /* USER CODE BEGIN USART1_MspInit 0 */
@@ -210,11 +207,12 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
   /* USER CODE END USART1_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_USART1_CLK_ENABLE();
-  
+
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**USART1 GPIO Configuration    
-    PB6     ------> USART1_TX
-    PB7     ------> USART1_RX 
+
+    /**USART1 GPIO Configuration
+    PA9     ------> USART1_TX
+    PA10     ------> USART1_RX
     */
     GPIO_InitStruct.Pin = DMX_TX_Pin|DMX_RX_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -223,6 +221,46 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     GPIO_InitStruct.Alternate = GPIO_AF0_USART1;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+    /* USART1 DMA Init */
+    /* USART1_RX Init */
+    /*
+    DMA1_Channel2->CCR &= (uint16_t)(~DMA_CCR_EN);
+    DMA1_Channel2->CPAR  = (uint32_t) & (USART3->TDR);
+    DMA1_Channel2->CMAR  = (uint32_t) & (packet_out);
+    DMA1_Channel2->CNDTR = sizeof(packet_out);
+    DMA1_Channel2->CCR   = DMA_CCR_MINC | DMA_CCR_DIR;  // | DMA_CCR_PL_0 | DMA_CCR_PL_1
+    DMA1->IFCR           = DMA_IFCR_CTCIF2 | DMA_IFCR_CHTIF2 | DMA_IFCR_CGIF2;
+
+    //RX DMA
+    DMA1_Channel3->CCR &= (uint16_t)(~DMA_CCR_EN);
+    DMA1_Channel3->CPAR = (uint32_t)&(USART3->RDR);
+    DMA1_Channel3->CMAR = (uint32_t)&(packet_in);
+    DMA1_Channel3->CNDTR = sizeof(packet_in);
+    DMA1_Channel3->CCR = DMA_CCR_MINC;// | DMA_CCR_PL_0 | DMA_CCR_PL_1
+    DMA1->IFCR = DMA_IFCR_CTCIF3 | DMA_IFCR_CHTIF3 | DMA_IFCR_CGIF3;
+    DMA1_Channel3->CCR |= DMA_CCR_EN;
+
+    USART3->RTOR = 16; // 16 bits timeout
+    USART3->CR2 |= USART_CR2_RTOEN; // timeout en
+    USART3->ICR |= USART_ICR_RTOCF; // timeout clear flag
+    */
+    hdma_usart1_rx.Instance = DMA1_Channel3;
+    hdma_usart1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_usart1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_usart1_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_usart1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_usart1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart1_rx.Init.Mode = DMA_NORMAL;
+    hdma_usart1_rx.Init.Priority = DMA_PRIORITY_HIGH;
+    if (HAL_DMA_Init(&hdma_usart1_rx) != HAL_OK)
+    {
+    }
+
+    __HAL_LINKDMA(huart,hdmarx,hdma_usart1_rx);
+
+    /* USART1 interrupt Init */
+    HAL_NVIC_SetPriority(USART1_IRQn, 10, 10);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
 
   /* USER CODE END USART1_MspInit 1 */
@@ -230,14 +268,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 
 }
 
-/**
-* @brief UART MSP De-Initialization
-* This function freeze the hardware resources used in this example
-* @param huart: UART handle pointer
-* @retval None
-*/
 void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
 {
+
   if(huart->Instance==USART1)
   {
   /* USER CODE BEGIN USART1_MspDeInit 0 */
@@ -245,19 +278,27 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
   /* USER CODE END USART1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_USART1_CLK_DISABLE();
-  
-    /**USART1 GPIO Configuration    
-    PB6     ------> USART1_TX
-    PB7     ------> USART1_RX 
+
+    /**USART1 GPIO Configuration
+    PA9     ------> USART1_TX
+    PA10     ------> USART1_RX
     */
     HAL_GPIO_DeInit(GPIOB, DMX_TX_Pin|DMX_RX_Pin);
 
+    /* USART1 DMA DeInit */
+    HAL_DMA_DeInit(huart->hdmarx);
+    HAL_DMA_DeInit(huart->hdmatx);
+
+
+    /* USART1 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspDeInit 1 */
 
   /* USER CODE END USART1_MspDeInit 1 */
   }
 
 }
+
 
 /* USER CODE BEGIN 1 */
 

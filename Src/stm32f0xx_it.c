@@ -67,6 +67,12 @@
 /**
   * @brief This function handles Non maskable interrupt.
   */
+
+extern DMA_HandleTypeDef hdma_usart1_rx;
+extern UART_HandleTypeDef huart1;
+
+extern uint8_t dmx_buffer[512 * 2];
+
 void NMI_Handler(void)
 {
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
@@ -131,6 +137,35 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 1 */
 }
+
+void DMA1_Channel2_3_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel2_3_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
+  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel2_3_IRQn 1 */
+}
+
+uint32_t tmp1 = 0;
+
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+  /* UART frame error interrupt occurred -------------------------------------*/
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+  tmp1 = huart1.ErrorCode;
+  if(huart1.ErrorCode & HAL_UART_ERROR_FE != 0){
+    // frame error
+    HAL_UART_Receive_DMA(&huart1, (uint8_t *)&dmx_buffer, sizeof(dmx_buffer));
+  }
+  /* USER CODE END USART1_IRQn 1 */
+}
+
 
 /******************************************************************************/
 /* STM32F0xx Peripheral Interrupt Handlers                                    */

@@ -105,8 +105,6 @@ AS_DEFS =
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32F030x8
--DUSE_HAL_DRIVER \
--DSTM32F030x8
 
 
 # AS includes
@@ -118,7 +116,6 @@ C_INCLUDES =  \
 -IDrivers/STM32F0xx_HAL_Driver/Inc \
 -IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32F0xx/Include \
--IDrivers/CMSIS/Include
 -IDrivers/CMSIS/Include
 
 
