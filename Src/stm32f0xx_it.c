@@ -161,11 +161,10 @@ void USART1_IRQHandler(void)
   tmp1 = huart1.ErrorCode;
   if(huart1.ErrorCode & HAL_UART_ERROR_FE != 0){
     // frame error
-    HAL_UART_Receive_DMA(&huart1, (uint8_t *)&dmx_buffer, sizeof(dmx_buffer));
+    // HAL_UART_Receive_DMA(&huart1, (uint8_t *)&dmx_buffer, sizeof(dmx_buffer));
   }
   /* USER CODE END USART1_IRQn 1 */
 }
-
 
 /******************************************************************************/
 /* STM32F0xx Peripheral Interrupt Handlers                                    */
