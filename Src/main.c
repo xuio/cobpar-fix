@@ -70,7 +70,7 @@ uint16_t pwm_data[3];
 uint8_t fan_buf = 0;
 float alpha = 0.01;
 
-const uint32_t max_duty[3] = {(2**32) - 1};
+// const uint32_t max_duty[3] = {(2**32) - 1};
 
 // TODO find max duty cycle for standard controller and limit values
 uint16_t gamma_map[] = {0,1,1,1,2,2,3,4,5,7,9,11,14,17,20,25,29,34,40,47,54,61,70,79,89,99,111,123,136,150,165,180,197,215,233,253,274,296,318,342,367,394,421,450,479,511,543,576,611,648,685,724,765,807,850,895,941,989,1038,1089,1141,1195,1251,1308,1367,1428,1490,1554,1620,1687,1757,1828,1901,1976,2052,2131,2211,2294,2378,2464,2553,2643,2735,2830,2926,3025,3125,3228,3333,3440,3549,3661,3775,3891,4009,4129,4252,4377,4505,4635,4767,4902,5039,5178,5320,5465,5612,5761,5913,6068,6225,6384,6547,6712,6879,7050,7223,7398,7577,7758,7942,8128,8318,8510,8705,8903,9104,9308,9515,9724,9937,10152,10371,10592,10817,11044,11275,11508,11745,11985,12228,12474,12723,12976,13231,13490,13752,14018,14286,14558,14833,15112,15394,15679,15968,16260,16555,16854,17156,17462,17771,18084,18400,18720,19043,19370,19701,20035,20372,20714,21059,21407,21760,22116,22476,22839,23206,23577,23952,24331,24714,25100,25490,25884,26282,26684,27090,27500,27913,28331,28753,29178,29608,30042,30480,30922,31368,31818,32272,32731,33193,33660,34131,34606,35086,35569,36057,36550,37046,37547,38052,38562,39076,39594,40117,40644,41175,41711,42252,42796,43346,43900,44458,45021,45589,46161,46738,47319,47905,48496,49091,49691,50296,50905,51519,52138,52761,53390,54023,54661,55304,55951,56604,57261,57923,58590,59262,59939,60621,61308,62000,62697,63399,64106,64818,65535};
@@ -128,6 +128,12 @@ uint16_t getAddress(){
   return ret;
 }
 
+size_t old_systick = 0;
+
+size_t systick_delta = 0;
+
+size_t reset_counter = 0;
+
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -174,16 +180,23 @@ int main(void)
   HAL_UART_Receive_DMA(&huart1, (uint8_t *)&dmx_buffer, sizeof(dmx_buffer));
 
   // init watchdog
-  iwdg.Init.Prescaler = IWDG_PRESCALER_256;
-  iwdg.Init.Reload = 187500;
-  iwdg.Init.Window = 0;
-  HAL_IWDG_Init(&iwdg);
+  // LSI = 40kHz
+  iwdg.Instance       = IWDG;
+  iwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  iwdg.Init.Reload    = 40000/16;
+  iwdg.Init.Window    = 0;
 
- //__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 100);
+
+  //HAL_IWDG_Init(&iwdg);
+
+  //__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  old_systick = HAL_GetTick();
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -196,8 +209,11 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     uint32_t errorcode = huart1.ErrorCode;
-    if(errorcode != 0){
-      HAL_IWDG_Refresh(&iwdg);
+    size_t curr_systick = HAL_GetTick();
+    if(errorcode != 0 && huart1.RxXferSize == 514){
+      old_systick = curr_systick;
+      // HAL_IWDG_Refresh(&iwdg);
+      // HAL_IWDG_Refresh(&iwdg);
 
       HAL_UART_DMAStop(&huart1);
       uint16_t address =  getAddress();
@@ -208,20 +224,26 @@ int main(void)
       pwm_data[2] = gamma_map[dmx_buffer_shadow[address + 2]];
 
       // set fan speed
-      uint32_t speed = fan_speed(pwm_data);
-      __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, speed);
+      // uint32_t speed = fan_speed(pwm_data);
+      // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, speed);
 
       // adjust max duty cycle
       // TODO: incorporate max_duty setting from original controller
-      pwm_data[0] /= 2;
-      pwm_data[1] /= 2;
-      pwm_data[2] /= 2;
+      pwm_data[0] *= 0.75;
+      pwm_data[1] *= 0.75;
+      pwm_data[2] *= 0.75;
 
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, pwm_data[0]);
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, pwm_data[2]);
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, pwm_data[1]);
 
       huart1.ErrorCode = 0;
+      //__HAL_IWDG_RELOAD_COUNTER(&iwdg);
+    }else{
+      systick_delta = curr_systick - old_systick;
+      if(systick_delta > 500){
+        NVIC_SystemReset();
+      }
     }
   }
   /* USER CODE END 3 */
