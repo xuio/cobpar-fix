@@ -69,6 +69,7 @@ uint16_t pwm_data[3];
 
 uint8_t fan_buf = 0;
 float alpha = 0.01;
+float max_duty = [0.15, 0.5, 0.5];
 
 // const uint32_t max_duty[3] = {(2**32) - 1};
 
@@ -219,19 +220,13 @@ int main(void)
       uint16_t address =  getAddress();
       HAL_UART_Receive_DMA(&huart1, (uint8_t *)&dmx_buffer, sizeof(dmx_buffer));
       memcpy(dmx_buffer_shadow, dmx_buffer + 1, sizeof(dmx_buffer_shadow));
-      pwm_data[0] = gamma_map[dmx_buffer_shadow[address + 0]];
-      pwm_data[1] = gamma_map[dmx_buffer_shadow[address + 1]];
-      pwm_data[2] = gamma_map[dmx_buffer_shadow[address + 2]];
+      pwm_data[0] = gamma_map[dmx_buffer_shadow[address + 0]] * max_duty[0];
+      pwm_data[1] = gamma_map[dmx_buffer_shadow[address + 1]] * max_duty[1];
+      pwm_data[2] = gamma_map[dmx_buffer_shadow[address + 2]] * max_duty[2];
 
       // set fan speed
       // uint32_t speed = fan_speed(pwm_data);
       // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, speed);
-
-      // adjust max duty cycle
-      // TODO: incorporate max_duty setting from original controller
-      pwm_data[0] *= 0.75;
-      pwm_data[1] *= 0.75;
-      pwm_data[2] *= 0.75;
 
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, pwm_data[0]);
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, pwm_data[2]);
