@@ -69,7 +69,7 @@ uint16_t pwm_data[3];
 
 uint8_t fan_buf = 0;
 float alpha = 0.01;
-float max_duty = [0.15, 0.5, 0.5];
+const float max_duty[3] = {0.15, 0.5, 0.5};
 
 // const uint32_t max_duty[3] = {(2**32) - 1};
 
@@ -200,20 +200,10 @@ int main(void)
 
   while (1)
   {
-    /* USER CODE END WHILE */
-    /*for(uint16_t i = 0; i < 0xFFFF; i += 10){
-      __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, i);
-      __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (0xFFFF)-i);
-      __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, (0xFFFF)-i);
-      HAL_Delay(1);
-    }*/
-
-    /* USER CODE BEGIN 3 */
     uint32_t errorcode = huart1.ErrorCode;
     size_t curr_systick = HAL_GetTick();
     if(errorcode != 0 && huart1.RxXferSize == 514){
       old_systick = curr_systick;
-      // HAL_IWDG_Refresh(&iwdg);
       // HAL_IWDG_Refresh(&iwdg);
 
       HAL_UART_DMAStop(&huart1);
@@ -241,7 +231,6 @@ int main(void)
       }
     }
   }
-  /* USER CODE END 3 */
 }
 
 /**
